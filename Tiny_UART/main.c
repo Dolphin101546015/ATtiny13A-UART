@@ -21,23 +21,23 @@
 		#define UART_DELAY	40										// 57600 bod																														//
 #endif																																																								//
 																																																										//
-//const uint8_t		Rx_Delay	=	123;								// 9600																																//
-//const		uint8_t		Rx_Delay	=	58;						// 19200																																//
-																																																										//
 const		uint8_t			UART_OUT_PORT	=	_SFR_IO_ADDR(PORTB);							//	UART TX data port 													//
 const		uint8_t			UART_IN_PORT		=	_SFR_IO_ADDR(PINB);								//	UART RX data port 													//
 const		uint8_t			RxD	=	PB3;								//	Receiver data line																										//
 const		uint8_t			TxD	=	PB4;								//	Transmitter data line																									//
 																																																										//
 #define	Buffer_Size 13													//	Buffer	Size for receiving																								//
-char											Rx_Buf[Buffer_Size]	=	{'T','e','s','t',' ','0','1','2','3',10,13,0};	//	 Buffer for receiving											//
+char											Rx_Buf[Buffer_Size]	=	{'T','e','s','t',' ','0','1','2','3',10,13,0};	//	 Buffer for receiving		( 13 bytes RAM )		//
 volatile	char*						Rx_Ptr		=	&Rx_Buf[0];			//	Current receiving byte pointer																			//
-volatile	register	uint8_t	Rx_flags	asm("r16");				//	[R0000000] Received flags register (highest bit is STOP-flag)					//																								//
+volatile	register	uint8_t	Rx_flags	asm("r16");				//	[R0000000] Received flags register (highest bit is STOP-flag)					//
+																																																										//
+#define	Send_BEEP				UART_Send((char [2]){7,0})																																			//
+#define	Send_CLS				UART_Send((char [2]){12,0})																																		//
 																																																										//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////		UART  Transmitting			////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
- void UART_Send(char *text){																									//																					//
+ void UART_Send(char *text){																									//														   ( 56 bytes )		//
 	asm volatile(																															//																					//
 							"	cli															\n\t"												//		Deny Interrupts												//
 "Tx_Byte:	"		"	ld			r18,			X+							\n\t"												//		Load data byte for sending							//
@@ -68,14 +68,14 @@ volatile	register	uint8_t	Rx_flags	asm("r16");				//	[R0000000] Received flags r
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////		UART  Detect Transmitting Interrupt	///////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-__attribute__ ((naked)) ISR(PCINT0_vect) {																			// PCINT [0:5]															//
+__attribute__ ((naked)) ISR(PCINT0_vect) {																			// PCINT [0:5]								   ( 74 bytes )		//
 //	if (!(PINB&(1<<RxD))) Rx_flags	=	0x80;																		//																					//
 	asm volatile(																															//																					//
 							"	cli															\n\t"												//		Deny Interrupts												//
 							"	push	r18											\n\t"												//		Store r18															//
 							"	push	r19											\n\t"												//		Store r19															//
 "Rx_Byte:"			"	sbic		%[port],	%[Rx_line]				\n\t"												//		START bit detector											//
-							"	rjmp	Exit_Receive							\n\t"												//																					//
+							"	rjmp	Exit_Receive							\n\t"												//		EXIT receiver if not START bit detected		//
 							"	ori		r16,			0x80						\n\t"												//		Rx_flags	=	0x80; (Data received flag)			//
 							"	ldi		r18,			8								\n\t"												//		Bits counter														//
 "Delay_Rx:"		"	mov		r0,			%[delay]					\n\t"												//		Loop	for skipping current bit						//
@@ -109,14 +109,16 @@ __attribute__ ((naked)) ISR(PCINT0_vect) {																			// PCINT [0:5]					
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////		UART  Receiver Init		////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void Init_UART_Receiving()																																															//
+void Init_UART_Receiving()//																																								( 12 bytes )	//
 {																																					//																					//
 	GIMSK		= (1<<PCIE);																											//	Enable External Interrupts									//
 	PCMSK	= (1<<PCINT3);																										//	Enable PCINT3 Interrupt									//
 	sei();																																		//	Allow Interrupts													//
 }																																																										//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*																																																										//
+////////////////////////////////////////////		Test function for sending numbers (uint16)		//////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*		 																																																								//
 void UART_Send_uint16(uint16_t n){																																										//
 	uint8_t i = 0;																																																				//
 	for (i=0; i<5; i++) Rx_Buf[i]=32; i=5;Rx_Buf[i--]=0;																																			//
@@ -125,38 +127,35 @@ void UART_Send_uint16(uint16_t n){																																										//
 	UART_Send(Rx_Buf);																																																//
 }	*/																																																									//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int main(void)																																																				//
+int main(void)//																																												   ( 50 bytes )		//
 {																																																										//
 	DDRB		  =	(0<<RxD) | (1 << TxD) ;																					//	Port Configuration											//
-	PORTB		|=	(1 << TxD);																																															//
-//	#define UART_Sender																																																//
-	#define UART_Receiver																																															//
+	PORTB		|=	(1 << TxD);																											//	UP Transmitting line										//
+//	#define UART_Sender																												//	Sender   DEMO mode										//
+	#define UART_Receiver																											//	Receiver DEMO mode										//
 																																																										//
 	#ifdef UART_Receiver																																																//
-		Init_UART_Receiving();																																														//
+		Init_UART_Receiving();																										//	Setting Receiver Interrupt								//
 	#endif																																																							//
 																																																										//
 	#ifdef UART_Sender																																																	//
 		uint16_t counter=0;																																																//
 	#endif																																																							//
-																																																										//
-//	UART_Send((char [2]){7,0});																																													//
+	Send_BEEP;																																																				//
 	while(1){																																																						//
 			#ifdef UART_Sender																																															//
 				if ((++counter)%10000==0)	 UART_Send(Rx_Buf);																																	//
-//				if ((++counter)%150000==0)	 UART_Send((char [2]){12,0});																											//
 			#endif																																																					//
 																																																										//
 			#ifdef UART_Receiver																																														//
-				if (Rx_flags&0x80) {																																														//
-//							UART_Send((char [2]){12,0});																																							//
-//							UART_Send_uint16(counter++);																																					//
-	 						UART_Send("Receive: ");																																									//
-							UART_Send(Rx_Buf);																																										//
-							Rx_flags=0;																																														//
+				if ( Rx_flags & 0x80 ) {																		//	Test receiving flag (Highest bit mean - data received)		//
+//							Send_CLS;																				//	Send clear terminal screen code												//
+	 						UART_Send("Receive: ");														//	Send description																			//
+							UART_Send(Rx_Buf);															//	Send received																				//
+							Rx_flags=0;																			//	Clear receiving flag																		//
 				}																																																						//
 			#endif																																																					//
-	}																																																									//
-}																																																										//
+	}																																					//////////////////////////////////////////////////
+}//																																					//			(c) by DolphinSoft #101546015			//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
