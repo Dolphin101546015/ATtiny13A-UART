@@ -1,2 +1,2 @@
-# AVR-Attiny13-UART
+# ATtiny13A-UART
 Software UART for ATtiny 13A
