@@ -3,7 +3,7 @@ Asynchron software UART for ATtiny 13A (or any AVR microCPU)
 
 Features:
   + No timer interrupt used for Sending/Receiving;
-  + Realy tiny code size (56 bytes for Sending fucction, 74 bytes for Receiver interrupt);
+  + Realy tiny code size (56 bytes for sending fucntion, 74 bytes for receiver interrupt);
   + Receiver with automatic synchronization, synchronizing by STOP bit of the flow transmitting;
   + No nested function calls for Sending/Receiving;
   + Flexible configuration for UART port pins;
