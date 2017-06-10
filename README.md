@@ -13,6 +13,6 @@ Features:
 
 Disadvantages:
   - Still not tested in hardware;
-  - Not tested (and still not configured) for speeds above 57600 bod;
+  - Not tested (and still not configured) for speeds above 57600 baud;
   - Only zero-endings C-String sending data is possible (to get rid of nested function calls)
   - Receiving buffer overflow control is not implemented (for reducing code size);
