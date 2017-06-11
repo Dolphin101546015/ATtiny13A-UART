@@ -5,20 +5,25 @@
 																																																										//
 //#define UART_SPEED_19200																																													//
 #define UART_SPEED_57600																																														//
+//#define UART_SPEED_115200																																												//
 																																																										//
 #ifdef UART_SPEED_9600																																															//
-		#define UART_DELAY	238										//   9600 bod																													//
+		#define UART_DELAY	238										//   9600 baud																													//
 #endif																																																								//
 																																																										//
 #ifdef UART_SPEED_19200																																															//
-		#define UART_DELAY	119										// 19200 bod																														//
+		#define UART_DELAY	119										// 19200 baud																													//
 #endif																																																								//
 #ifdef UART_SPEED_38400																																															//
-		#define UART_DELAY	59										// 38400 bod																														//
+		#define UART_DELAY	59										// 38400 baud																													//
 #endif																																																								//
 																																																										//
 #ifdef UART_SPEED_57600																																															//
-		#define UART_DELAY	40										// 57600 bod																														//
+		#define UART_DELAY	41										// 57600 baud																													//
+#endif																																																								//
+																																																										//
+#ifdef UART_SPEED_115200																																														//
+		#define UART_DELAY	20										// 115200 baud	(need testing in real hardware)													//
 #endif																																																								//
 																																																										//
 const		uint8_t			UART_OUT_PORT	=	_SFR_IO_ADDR(PORTB);							//	UART TX data port 													//
@@ -77,6 +82,8 @@ __attribute__ ((naked)) ISR(PCINT0_vect) {																			// PCINT [0:5]					
 							"	rjmp	Exit_Receive							\n\t"												//		EXIT receiver if not START bit detected		//
 							"	cp		r26,			%[end]					\n\t"												//		Overflow buffer control									//
 							"	breq	Exit_Receive							\n\t"												//		Exit if reached end											//
+							"	nop														\n\t"												//		Shift time line of signal detection phase		//
+							"	nop														\n\t"												//																					//
 							"	ori		r16,			0x80						\n\t"												//		Rx_flags	=	0x80; (Data received flag)			//
 							"	ldi		r18,			8								\n\t"												//		Bits counter														//
 "Delay_Rx:"		"	mov		r0,			%[delay]					\n\t"												//		Loop	for skipping current bit						//
@@ -91,10 +98,11 @@ __attribute__ ((naked)) ISR(PCINT0_vect) {																			// PCINT [0:5]					
 							"	st			X+,			r19							\n\t"												//		Store current byte											//
 							"	mov		r0,			%[delay]					\n\t"												//		Loop	for skipping last & stop bits				//
 "Skip:"					"	nop														\n\t"												//																		|			//
+							"	nop														\n\t"												//																		|			//
 							"	dec		r0												\n\t"												//																		|			//
 							"	brne	Skip											\n\t"												//		____________________________________|			//
 							"	dec		r0												\n\t"												//		r0 = 255																//
-"Stop_Rx:"			"	sbiw	r26,			0								\n\t"												//		IDLE loop															//
+"Stop_Rx:"			"	nop														\n\t"												//																			|		//
 							"	dec		r0												\n\t"												//																			|		//
 							"	breq	Exit_Receive							\n\t"												//				__________________________________|		//
 							"	sbis		%[port],	%[Rx_line]				\n\t"   												//		... with finding new START bit				|		//
@@ -129,7 +137,7 @@ void UART_Send_uint16(uint16_t n){																																										//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(void)//																																												   ( 50 bytes )		//
 {																																																										//
-	DDRB		  =	(0<<RxD) | (1 << TxD);// |1;																				//	Port Configuration											//
+	DDRB		  =	(0<<RxD) | (1 << TxD) |1;																				//	Port Configuration											//
 	PORTB		|=	(1 << TxD);																											//	UP Transmitting line										//
 //	#define UART_Sender																												//	Sender   DEMO mode										//
 	#define UART_Receiver																											//	Receiver DEMO mode										//

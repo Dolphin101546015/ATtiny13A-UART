@@ -40,17 +40,6 @@
     </AsfFrameworkConfig>
     <AAFDebugger>
       <AAFDebugFiles>
-        <DebugFile>
-          <path>\Debug\Tiny_UART.lss</path>
-          <AAFSetting>
-            <Label>Lss Files</Label>
-            <Extention>.lss</Extention>
-            <Regex>^\s*(?&lt;address&gt;[a-f0-9]*):\s*.*$</Regex>
-            <DebugEnabled>true</DebugEnabled>
-            <RegexGroups>address</RegexGroups>
-            <DebuggerExpression>$pc</DebuggerExpression>
-          </AAFSetting>
-        </DebugFile>
       </AAFDebugFiles>
     </AAFDebugger>
     <avrtool>com.atmel.avrdbg.tool.simulator</avrtool>
