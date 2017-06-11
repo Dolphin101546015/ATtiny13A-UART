@@ -26,8 +26,9 @@ const		uint8_t			UART_IN_PORT		=	_SFR_IO_ADDR(PINB);								//	UART RX data port
 const		uint8_t			RxD	=	PB3;								//	Receiver data line																										//
 const		uint8_t			TxD	=	PB4;								//	Transmitter data line																									//
 																																																										//
-#define	Buffer_Size 13													//	Buffer	Size for receiving																								//
-char											Rx_Buf[Buffer_Size]	=	{'T','e','s','t',' ','0','1','2','3',10,13,0};	//	 Buffer for receiving		( 13 bytes RAM )		//
+#define	Buf_Size 13													//	Buffer	Size for receiving																									//
+char											Rx_Buf[Buf_Size]	=	{'T','e','s','t','0','1','2','3','4','5',10,13,0};	//	 Buffer for receiving		( 13 bytes RAM )		//
+char											comp[Buf_Size]		=	{'T','e','s','t','0','1','2','3','4','5',10,13,0};	//	 Buffer for receiving		( 13 bytes RAM )		//
 volatile	char*						Rx_Ptr		=	&Rx_Buf[0];			//	Current receiving byte pointer																			//
 volatile	register	uint8_t	Rx_flags	asm("r16");				//	[R0000000] Received flags register (highest bit is STOP-flag)					//
 																																																										//
@@ -38,8 +39,8 @@ volatile	register	uint8_t	Rx_flags	asm("r16");				//	[R0000000] Received flags r
 //////////////////////////////////////////////////////////		UART  Transmitting			////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  void UART_Send(char *text){																									//														   ( 56 bytes )		//
+	cli();																																			//		Prevent Interrupts											//
 	asm volatile(																															//																					//
-							"	cli															\n\t"												//		Deny Interrupts												//
 "Tx_Byte:	"		"	ld			r18,			X+							\n\t"												//		Load data byte for sending							//
 							"	cp		r18,			r1								\n\t"												//		Compare with ZERO										//
 							"	breq	Exit_Transmit							\n\t"												//		Exit if equal, EXIT transmitting						//
@@ -70,12 +71,12 @@ volatile	register	uint8_t	Rx_flags	asm("r16");				//	[R0000000] Received flags r
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 __attribute__ ((naked)) ISR(PCINT0_vect) {																			// PCINT [0:5]								   ( 74 bytes )		//
 //	if (!(PINB&(1<<RxD))) Rx_flags	=	0x80;																		//																					//
+	cli();																																			//		Prevent interrupts											//
 	asm volatile(																															//																					//
-							"	cli															\n\t"												//		Deny Interrupts												//
-							"	push	r18											\n\t"												//		Store r18															//
-							"	push	r19											\n\t"												//		Store r19															//
 "Rx_Byte:"			"	sbic		%[port],	%[Rx_line]				\n\t"												//		START bit detector											//
 							"	rjmp	Exit_Receive							\n\t"												//		EXIT receiver if not START bit detected		//
+							"	cp		r26,			%[end]					\n\t"												//		Overflow buffer control									//
+							"	breq	Exit_Receive							\n\t"												//		Exit if reached end											//
 							"	ori		r16,			0x80						\n\t"												//		Rx_flags	=	0x80; (Data received flag)			//
 							"	ldi		r18,			8								\n\t"												//		Bits counter														//
 "Delay_Rx:"		"	mov		r0,			%[delay]					\n\t"												//		Loop	for skipping current bit						//
@@ -93,18 +94,17 @@ __attribute__ ((naked)) ISR(PCINT0_vect) {																			// PCINT [0:5]					
 							"	dec		r0												\n\t"												//																		|			//
 							"	brne	Skip											\n\t"												//		____________________________________|			//
 							"	dec		r0												\n\t"												//		r0 = 255																//
-"Stop_Rx:"			"	nop														\n\t"												//		IDLE loop															//
+"Stop_Rx:"			"	sbiw	r26,			0								\n\t"												//		IDLE loop															//
 							"	dec		r0												\n\t"												//																			|		//
 							"	breq	Exit_Receive							\n\t"												//				__________________________________|		//
-							"	sbic		%[port],	%[Rx_line]				\n\t"   												//		... with finding new START bit				|		//
-							"	rjmp	Stop_Rx									\n\t"												//																			|		//
-							"	rjmp	Rx_Byte									\n\t"												//		______________________________________|			//
+							"	sbis		%[port],	%[Rx_line]				\n\t"   												//		... with finding new START bit				|		//
+							"	rjmp	Rx_Byte									\n\t"												//																			|		//
+							"	rjmp	Stop_Rx									\n\t"												//		______________________________________|			//
 "Exit_Receive:"	"	st			X,				r1								\n\t"												//		Zero string marker											//
-							"	pop		r19											\n\t"												//		Restore r19														//
-							"	pop		r18											\n\t"												//		Restore r18														//
 							"	sei														\n\t"												//		Allow Interrupts												//
 							"	reti														\n\t"												//		Return from Interrupt										//
-:: [Buf] "x" (Rx_Buf), [Rx_line]	"I" (RxD), [delay]	"r" (UART_DELAY+1), [port]	"I" (UART_IN_PORT):"memory");										//
+:: [Buf]"x"(Rx_Buf), [Rx_line]"I"(RxD), [delay]"r"(UART_DELAY+1), [end]"r"(&Rx_Buf[Buf_Size-1]), [port]"I" (UART_IN_PORT) \
+:"r18","r19","memory");																											//																					//
 }																																					//																					//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////		UART  Receiver Init		////////////////////////////////////////////////////////
@@ -129,7 +129,7 @@ void UART_Send_uint16(uint16_t n){																																										//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(void)//																																												   ( 50 bytes )		//
 {																																																										//
-	DDRB		  =	(0<<RxD) | (1 << TxD) ;																					//	Port Configuration											//
+	DDRB		  =	(0<<RxD) | (1 << TxD);// |1;																				//	Port Configuration											//
 	PORTB		|=	(1 << TxD);																											//	UP Transmitting line										//
 //	#define UART_Sender																												//	Sender   DEMO mode										//
 	#define UART_Receiver																											//	Receiver DEMO mode										//
@@ -150,7 +150,7 @@ int main(void)//																																												   ( 50 bytes )		//
 			#ifdef UART_Receiver																																														//
 				if ( Rx_flags & 0x80 ) {																		//	Test receiving flag (Highest bit mean - data received)		//
 //							Send_CLS;																				//	Send clear terminal screen code												//
-	 						UART_Send("Receive: ");														//	Send description																			//
+							UART_Send("Receive: ");														//	Send description																			//
 							UART_Send(Rx_Buf);															//	Send received																				//
 							Rx_flags=0;																			//	Clear receiving flag																		//
 				}																																																						//
