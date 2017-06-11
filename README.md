@@ -8,12 +8,11 @@ Features:
   + Realy tiny code size (56 bytes for sending fucntion, 80 bytes for receiver interrupt);
   + Receiver with automatic synchronization, synchronizing by STOP bit of the flow transmitting;
   + No nested function calls for Sending/Receiving;
-  + Flexible configuration for UART port pins;
   + No memory used for variables, except receiving buffer (13 bytes by default);
-  + Only three registers used for both UART functions, except temporary (r0);
-  + Flexible UART speed rate selection;
   + Applied receiving buffer overflow detection;
   + Applied lost line detection.
+  + Flexible configuration for UART port pins;
+  + Flexible UART speed rate selection;
 
 Disadvantages:
   - Still not tested in hardware;
