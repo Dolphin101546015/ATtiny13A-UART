@@ -16,5 +16,5 @@ Features:
 
 Disadvantages:
   - Still not tested in hardware;
-  - Not tested (and still not configured) for speed rates above 57600 baud (will also work on 115200 baud);
+  - Not tested for speed rates above 57600 baud (will also work on 115200 baud, configuration is possible);
   - Only zero-endings C-String sending data is possible (to get rid of nested function calls).
